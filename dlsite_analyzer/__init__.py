@@ -172,11 +172,6 @@ def import_voice_works_to_db(input_dir: str):
               
         logger.info("All JSON data imported to the database.")
 
-def main():
-    with DatabaseManager(DATABASE_PATH) as db:
-        voice_works = VoiceWorksTableManager(db)
-        df = voice_works.get_all_voice_works()
-
 __all__ = [
     'initialize_database',
     'fetch_and_save_voice_works',
@@ -184,5 +179,4 @@ __all__ = [
     'generate_wordcloud',
     'plot_wordcloud',
     'extract_words',
-    'main'
 ]
