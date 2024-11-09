@@ -1,7 +1,7 @@
 # DLsite-Analyzer
 
 ## 概要
-このプロジェクトは、[DLsite](https://www.dlsite.com/maniax/)から取得したテキストデータを解析し、ASMRやボイス作品に関する分析を行うツールです。
+このプロジェクトは、[DLsite](https://www.dlsite.com)から取得したテキストデータを解析し、ASMRやボイス作品に関する分析を行うツールです。
 主な機能は以下の通りです。
 - データベースからの単語抽出
 - MeCabを使用したテキスト解析
