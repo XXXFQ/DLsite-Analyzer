@@ -1,3 +1,5 @@
+import pandas as pd
+
 from ..common import (
     DatabaseManager,
     ViewManagerInterface
@@ -84,3 +86,16 @@ class VoiceWorksViewManager(ViewManagerInterface):
         order_by = f"{VOICE_WORKS_TABLE}.{VOICE_WORKS_PRODUCT_ID}"
         
         super().__init__(db_manager, view_info, tables, joins, order_by)
+    
+    def get_all_voice_works(self) -> pd.DataFrame:
+        '''
+        全てのボイス作品情報を取得する
+        
+        Returns
+        -------
+        pd.DataFrame
+            ボイス作品情報のデータフレーム
+        '''
+        query = f"SELECT * FROM {self.view_info['name']}"
+        res = self.db_manager.execute_query(query)
+        return pd.DataFrame(res.fetchall(), columns=self.get_columns())
