@@ -1,7 +1,7 @@
 import sqlite3
 
 class DatabaseManager:
-    def __init__(self, db_path):
+    def __init__(self, db_path: str):
         '''
         データベースを開く
         

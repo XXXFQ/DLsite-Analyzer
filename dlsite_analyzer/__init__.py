@@ -2,8 +2,14 @@ import os
 import glob
 
 from tqdm import tqdm
+
 from .scraper import VoiceWorkScraper
-from .config import RAW_JSON_DATA_DIR, DATABASE_PATH
+from .config import DATABASE_PATH
+from .text_analyzer import (
+    extract_words,
+    generate_wordcloud,
+    plot_wordcloud
+)
 from .database import (
     DatabaseManager,
     VoiceWorksTableManager,
@@ -29,7 +35,12 @@ from .database.constants import (
     CATEGORY_NAME,
     AUTHOR_NAME
 )
-from .utils import Logger, load_json, save_json, sleep_random
+from .utils import (
+    Logger,
+    load_json,
+    save_json,
+    sleep_random
+)
 
 logger = Logger.getLogger(__name__)
 
@@ -141,12 +152,16 @@ def import_voice_works_to_db(input_dir: str):
         logger.info("All JSON data imported to the database.")
 
 def main():
-    initialize_database()
-    import_voice_works_to_db(RAW_JSON_DATA_DIR)
+    with DatabaseManager(DATABASE_PATH) as db:
+        voice_works = VoiceWorksTableManager(db)
+        df = voice_works.get_all_voice_works()
 
 __all__ = [
     'initialize_database',
     'fetch_and_save_voice_works',
     'import_voice_works_to_db',
+    'generate_wordcloud',
+    'plot_wordcloud',
+    'extract_words',
     'main'
 ]

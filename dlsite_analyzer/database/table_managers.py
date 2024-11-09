@@ -1,3 +1,5 @@
+import pandas as pd
+
 from .database_manager import DatabaseManager
 from .constants import (
     VOICE_WORKS_TABLE,
@@ -93,28 +95,18 @@ class VoiceWorksTableManager:
         query = f"REPLACE INTO {self.table_info['name']} ({columns}) VALUES ({placeholders})"
         self.db_manager.execute_query(query, tuple(voice_works.values()))
     
-    def get_all_voice_works(self) -> dict:
+    def get_all_voice_works(self) -> pd.DataFrame:
         '''
         全てのボイス作品情報を取得する
         
         Returns
         -------
-        dict
-            ボイス作品情報
+        pd.DataFrame
+            ボイス作品情報のデータフレーム
         '''
-        # カラム名のリストを取得
-        columns = self.table_info['columns']
-        
         query = f"SELECT * FROM {self.table_info['name']}"
         res = self.db_manager.execute_query(query)
-        
-        return {
-            voice_work[0]: {
-                column : voice_work[i]
-                for i, column in enumerate(columns)
-            }
-            for voice_work in res.fetchall()
-        }
+        return pd.DataFrame(res.fetchall(), columns=self.table_info['columns'])
 
 class MakersTableManager:
     def __init__(self, db_manager: DatabaseManager):
