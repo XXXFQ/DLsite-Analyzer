@@ -12,10 +12,12 @@ from .text_analyzer import (
 )
 from .database import (
     DatabaseManager,
+    VoiceWorksViewManager,
     VoiceWorksTableManager,
     MakersTableManager,
     CategoriesTableManager,
-    AuthorsTableManager
+    AuthorsTableManager,
+    AgeRatingTableManager
 )
 from .database.constants import (
     VOICE_WORKS_PRODUCT_ID,
@@ -28,12 +30,13 @@ from .database.constants import (
     VOICE_WORKS_POINTS,
     VOICE_WORKS_SALES_COUNT,
     VOICE_WORKS_REVIEW_COUNT,
-    VOICE_WORKS_AGE_RATING,
+    VOICE_WORKS_AGE_RATING_ID,
     VOICE_WORKS_FULL_IMAGE_URL,
     MAKER_ID,
     MAKER_NAME,
     CATEGORY_NAME,
-    AUTHOR_NAME
+    AUTHOR_NAME,
+    AGE_RATING_NAME
 )
 from .utils import (
     Logger,
@@ -53,10 +56,14 @@ def initialize_database():
         makers_manager = MakersTableManager(db_manager)
         categories_manager = CategoriesTableManager(db_manager)
         authors_manager = AuthorsTableManager(db_manager)
+        age_rating_manager = AgeRatingTableManager(db_manager)
+        voice_works_view = VoiceWorksViewManager(db_manager)
         voice_works_manager.create_table()
         makers_manager.create_table()
         categories_manager.create_table()
         authors_manager.create_table()
+        age_rating_manager.create_table()
+        voice_works_view.create_view()
     
     logger.info("Database initialized successfully.")
 
@@ -111,50 +118,59 @@ def import_voice_works_to_db(input_dir: str):
         makers_manager = MakersTableManager(db_manager)
         categories_manager = CategoriesTableManager(db_manager)
         authors_manager = AuthorsTableManager(db_manager)
+        age_rating_manager = AgeRatingTableManager(db_manager)
+        
+        # 作者なしのデータを挿入
+        authors_manager.insert({AUTHOR_NAME: ''})
         
         for json_path in tqdm(json_paths, desc="Importing JSON to DB"):
             voice_works = load_json(json_path)
             
             for work in voice_works:
+                # メーカーデータを挿入 
                 maker_data = {
                     MAKER_ID: work['maker_id'],
                     MAKER_NAME: work['maker']
                 }
-                category_data = {CATEGORY_NAME: work['category']}
-                author_data = {AUTHOR_NAME: work['author']}
-                
                 makers_manager.insert(maker_data)
+                
+                # カテゴリーデータを挿入
+                category_data = {CATEGORY_NAME: work['category']}
                 categories_manager.insert(category_data)
-                category_id = categories_manager.get_category_id(work['category'])
+                category_id = categories_manager.get_category_id(category_data[CATEGORY_NAME])
                 
-                author_id = None
-                if work['author']:
+                # 作者データを挿入
+                author_data = {AUTHOR_NAME: work['author']}
+                author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
+                if author_id is None and author_data[AUTHOR_NAME]:
                     authors_manager.insert(author_data)
-                    author_id = authors_manager.get_author_id(work['author'])
+                    author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
                 
+                # 年齢レーティングデータを挿入
+                age_rating_data = {AGE_RATING_NAME: work['age_rating']}
+                age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
+                if age_rating_id is None:
+                    age_rating_manager.insert(age_rating_data)
+                    age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
+                
+                # ボイス作品データを挿入
                 voice_work_entry = {
                     VOICE_WORKS_PRODUCT_ID: work['product_id'],
                     VOICE_WORKS_TITLE: work['title'],
                     VOICE_WORKS_URL: work['url'],
                     VOICE_WORKS_CATEGORY_ID: category_id,
-                    VOICE_WORKS_MAKER_ID: work['maker_id'],
+                    VOICE_WORKS_MAKER_ID: maker_data[MAKER_ID],
                     VOICE_WORKS_AUTHOR_ID: author_id,
                     VOICE_WORKS_PRICE: work['price'],
                     VOICE_WORKS_POINTS: work['points'],
                     VOICE_WORKS_SALES_COUNT: work['sales_count'],
                     VOICE_WORKS_REVIEW_COUNT: work['review_count'],
-                    VOICE_WORKS_AGE_RATING: work['age_rating'],
+                    VOICE_WORKS_AGE_RATING_ID: age_rating_id,
                     VOICE_WORKS_FULL_IMAGE_URL: work['full_image_url']
                 }
-                
                 voice_works_manager.insert(voice_work_entry)
               
         logger.info("All JSON data imported to the database.")
-
-def main():
-    with DatabaseManager(DATABASE_PATH) as db:
-        voice_works = VoiceWorksTableManager(db)
-        df = voice_works.get_all_voice_works()
 
 __all__ = [
     'initialize_database',
@@ -163,5 +179,4 @@ __all__ = [
     'generate_wordcloud',
     'plot_wordcloud',
     'extract_words',
-    'main'
 ]
