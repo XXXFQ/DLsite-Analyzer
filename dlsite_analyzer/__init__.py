@@ -41,8 +41,7 @@ from .database.constants import (
 from .utils import (
     Logger,
     load_json,
-    save_json,
-    sleep_random
+    save_json
 )
 
 logger = Logger.getLogger(__name__)
@@ -97,8 +96,6 @@ def fetch_and_save_voice_works(save_dir: str):
         else:
             logger.error(f"Failed to fetch page {page}: Status code {response.status_code}")
             break
-        
-        sleep_random(2, 4)
     
     logger.info("All pages processed and saved as JSON files.")
 

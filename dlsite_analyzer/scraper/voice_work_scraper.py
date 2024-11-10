@@ -2,7 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 
-from ..utils import Logger
+from ..utils import (
+    Logger,
+    sleep_random
+)
 
 logger = Logger.getLogger(__name__)
 
@@ -65,6 +68,9 @@ class VoiceWorkScraper:
         # 完全なURLを構築してGETリクエストを送信
         url = self._build_url()
         response = requests.get(url, headers=self.headers)
+        
+        # リクエストが成功した場合はランダムな秒数だけスリープ
+        sleep_random(2, 4)
         
         return response
     
