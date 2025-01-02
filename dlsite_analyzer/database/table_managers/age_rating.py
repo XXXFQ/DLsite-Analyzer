@@ -3,8 +3,8 @@ from ..common import (
     TableManagerInterface
 )
 from ..constants import (
-    AGE_RATING_TABLE,
-    AGE_RATING_ID,
+    AGE_TABLE,
+    AGE_PRIMARY_KEY,
     AGE_RATING_NAME,
 )
 
@@ -12,16 +12,16 @@ class AgeRatingTableManager(TableManagerInterface):
     def __init__(self, db_manager: DatabaseManager):
         # テーブル情報
         table_info  = {
-            'name': AGE_RATING_TABLE,
+            'name': AGE_TABLE,
             'columns': [
-                AGE_RATING_ID,
+                AGE_PRIMARY_KEY,
                 AGE_RATING_NAME
             ]
         }
         
         # テーブルのカラム名とデータ型
         columns_with_types = {
-            AGE_RATING_ID: 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            AGE_PRIMARY_KEY: 'INTEGER PRIMARY KEY AUTOINCREMENT',
             AGE_RATING_NAME: 'TEXT UNIQUE NOT NULL'
         }
         
@@ -56,7 +56,7 @@ class AgeRatingTableManager(TableManagerInterface):
         int
             年齢レーティングID（見つからない場合はNoneまたは例外を発生させる）
         '''
-        query = f"SELECT {AGE_RATING_ID} FROM {self.table_info['name']} WHERE {AGE_RATING_NAME} = ?"
+        query = f"SELECT {AGE_PRIMARY_KEY} FROM {self.table_info['name']} WHERE {AGE_RATING_NAME} = ?"
         res = self.db_manager.execute_query(query, (age_rating_name,))
         record = res.fetchone()
         return record[0] if record else None

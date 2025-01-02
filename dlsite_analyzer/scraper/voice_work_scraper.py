@@ -48,25 +48,46 @@ class VoiceWorkScraper:
             "lang_options[1]": "言語不要"
         }
 
-    def get_voice_works_page(self, page=1) -> requests.Response:
+    def get_voice_works_response(self, page=1) -> requests.Response:
         '''
-        指定されたページ番号のボイス作品を取得
+        ボイス作品一覧ページのレスポンスを取得
         
         Parameters
         ----------
-        page : int, optional
-            取得するページ番号 (デフォルトは1)
+        page : int
+            ページ番号
         
         Returns
         -------
         requests.Response
-            指定ページのレスポンスオブジェクト
+            レスポンスオブジェクト
         '''
         # ページ番号をクエリパラメータに設定
         self.params['page'] = str(page)
         
         # 完全なURLを構築してGETリクエストを送信
         url = self._build_url()
+        response = requests.get(url, headers=self.headers)
+        
+        # リクエストが成功した場合はランダムな秒数だけスリープ
+        sleep_random(2, 4)
+        
+        return response
+    
+    def get_voice_works_response_by_url(self, url: str) -> requests.Response:
+        '''
+        指定されたURLのレスポンスを取得
+        
+        Parameters
+        ----------
+        url : str
+            レスポンスを取得するURL
+        
+        Returns
+        -------
+        requests.Response
+            レスポンスオブジェクト
+        '''
         response = requests.get(url, headers=self.headers)
         
         # リクエストが成功した場合はランダムな秒数だけスリープ
@@ -124,13 +145,19 @@ class VoiceWorkScraper:
         results = []
 
         for work in voice_works_list:
-            product_attributes = self._extract_product_attributes(work)
+            url = self._extract_title_and_link(work)["url"]
+            response = self.get_voice_works_response_by_url(url)
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch the work page: {url}")
+                continue
+            
             work_data = {
                 "product_id": self._extract_product_id(work), # 作品ID
                 "title": self._extract_title_and_link(work)["title"], # タイトル
                 "url": self._extract_title_and_link(work)["url"], # URL
                 "category": self._extract_category(work), # カテゴリー
-                "maker_id": product_attributes.get("maker_id", ""), # メーカーID
+                "maker_id": self._extract_maker_id(work), # メーカーID
                 "maker": self._extract_maker_name(work), # メーカー名
                 "author": self._extract_author_name(work), # 作者名
                 "price": self._extract_price(work), # 価格
@@ -138,7 +165,6 @@ class VoiceWorkScraper:
                 "currency_data": self._extract_currency_data(work), # 通貨データ
                 "sales_count": self._extract_sales_count(work), # 販売数
                 "review_count": self._extract_review_count(work), # レビュー数
-                "target_gender": product_attributes.get("target_gender", ""), # 対象性別
                 "age_rating": self._extract_age_restriction(work), # 年齢制限
                 "full_image_url": self._extract_full_image_url(work), # フルサイズ画像のURL
             }
@@ -203,6 +229,27 @@ class VoiceWorkScraper:
             category_link = category_element.find("div", class_="work_category").find("a")
             if category_link:
                 return category_link.get_text(strip=True)
+        return ""
+    
+    def _extract_maker_id(self, work: BeautifulSoup) -> str:
+        '''
+        メーカーIDの取得
+        
+        Parameters
+        ----------
+        work : BeautifulSoup
+            作品情報が格納された要素
+        
+        Returns
+        -------
+        str
+            メーカーID
+        '''
+        attributes_element = work.find("input", {"class": "__product_attributes"})
+        if attributes_element and (value := attributes_element.get("value")):
+            attribute_list = value.split(",")
+            if len(attribute_list) > 0:
+                return attribute_list[0]
         return ""
     
     def _extract_maker_name(self, work: BeautifulSoup) -> str:
@@ -351,32 +398,6 @@ class VoiceWorkScraper:
             age_rating_element = genre_element.find("span", {"title": True})
             return age_rating_element["title"] if age_rating_element else "R-18"
         return ""
-    
-    def _extract_product_attributes(self, work: BeautifulSoup) -> dict:
-        '''
-        製品属性の取得と解析
-        
-        Parameters
-        ----------
-        work : BeautifulSoup
-            作品情報が格納された要素
-        
-        Returns
-        -------
-        dict
-            製品属性を説明的なキーと共に格納した辞書
-        '''
-        attributes_element = work.find("input", {"class": "__product_attributes"})
-        if attributes_element and (value := attributes_element.get("value")):
-            attribute_list = value.split(",")
-            attribute_dict = {
-                "maker_id": attribute_list[0],  # メーカーID
-                "category": attribute_list[1],   # カテゴリコード
-                "target_gender": attribute_list[2],  # 対象性別
-                "other_attributes": attribute_list[3:]  # その他の属性（説明が必要な場合は追加で設定）
-            }
-            return attribute_dict
-        return {}
     
     def _extract_full_image_url(self, work: BeautifulSoup) -> str:
         '''

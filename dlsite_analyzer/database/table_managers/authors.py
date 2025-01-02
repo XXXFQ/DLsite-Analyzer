@@ -3,26 +3,26 @@ from ..common import (
     TableManagerInterface
 )
 from ..constants import (
-    AUTHORS_TABLE,
-    AUTHOR_ID,
-    AUTHOR_NAME,
+    VOICE_ACTORS_TABLE,
+    VOICE_ACTOR_PRIMARY_KEY,
+    VOICE_ACTOR_NAME,
 )
 
 class AuthorsTableManager(TableManagerInterface):
     def __init__(self, db_manager: DatabaseManager):
         # テーブル情報
         table_info  = {
-            'name': AUTHORS_TABLE,
+            'name': VOICE_ACTORS_TABLE,
             'columns': [
-                AUTHOR_ID,
-                AUTHOR_NAME
+                VOICE_ACTOR_PRIMARY_KEY,
+                VOICE_ACTOR_NAME
             ]
         }
         
         # テーブルのカラム名とデータ型
         columns_with_types = {
-            AUTHOR_ID: 'INTEGER PRIMARY KEY AUTOINCREMENT',
-            AUTHOR_NAME: 'TEXT UNIQUE NOT NULL'
+            VOICE_ACTOR_PRIMARY_KEY: 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            VOICE_ACTOR_NAME: 'TEXT UNIQUE NOT NULL'
         }
         
         # 親クラスのコンストラクタを呼び出す
@@ -56,7 +56,7 @@ class AuthorsTableManager(TableManagerInterface):
         int
             作者ID
         '''
-        query = f"SELECT {AUTHOR_ID} FROM {self.table_info['name']} WHERE {AUTHOR_NAME} = ?"
+        query = f"SELECT {VOICE_ACTOR_PRIMARY_KEY} FROM {self.table_info['name']} WHERE {VOICE_ACTOR_NAME} = ?"
         res = self.db_manager.execute_query(query, (author_name,))
         record = res.fetchone()
         return record[0] if record else None

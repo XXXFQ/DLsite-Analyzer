@@ -20,22 +20,22 @@ from .database import (
     AgeRatingTableManager
 )
 from .database.constants import (
-    VOICE_WORKS_PRODUCT_ID,
+    VOICE_WORKS_PRIMARY_KEY,
     VOICE_WORKS_TITLE,
     VOICE_WORKS_URL,
-    VOICE_WORKS_CATEGORY_ID,
-    VOICE_WORKS_MAKER_ID,
-    VOICE_WORKS_AUTHOR_ID,
+    PRODUCT_FORMAT_FOREIGN_KEY,
+    CIRCLES_FOREIGN_KEY,
+    VOICE_ACTORS_FOREIGN_KEY,
     VOICE_WORKS_PRICE,
     VOICE_WORKS_POINTS,
     VOICE_WORKS_SALES_COUNT,
     VOICE_WORKS_REVIEW_COUNT,
-    VOICE_WORKS_AGE_RATING_ID,
+    AGE_FOREIGN_KEY,
     VOICE_WORKS_FULL_IMAGE_URL,
-    MAKER_ID,
-    MAKER_NAME,
-    CATEGORY_NAME,
-    AUTHOR_NAME,
+    CIRCLE_PRIMARY_KEY,
+    CIRCLE_NAME,
+    PRODUCT_FORMAT_NAME,
+    VOICE_ACTOR_NAME,
     AGE_RATING_NAME
 )
 from .utils import (
@@ -77,7 +77,7 @@ def fetch_and_save_voice_works(save_dir: str):
     '''
     scraper = VoiceWorkScraper()
     
-    first_page_response = scraper.get_voice_works_page()
+    first_page_response = scraper.get_voice_works_response()
     if first_page_response.status_code != 200:
         logger.error("Failed to fetch the first page.")
         return None
@@ -86,7 +86,7 @@ def fetch_and_save_voice_works(save_dir: str):
     logger.info(f"Total pages to process: {total_pages}")
     
     for page in tqdm(range(1, total_pages + 1), desc="Fetching pages"):
-        response = scraper.get_voice_works_page(page)
+        response = scraper.get_voice_works_response(page)
 
         if response.status_code == 200:
             voice_works = scraper.extract_voice_work_data(response.text)
@@ -118,7 +118,7 @@ def import_voice_works_to_db(input_dir: str):
         age_rating_manager = AgeRatingTableManager(db_manager)
         
         # 作者なしのデータを挿入
-        authors_manager.insert({AUTHOR_NAME: ''})
+        authors_manager.insert({VOICE_ACTOR_NAME: ''})
         
         for json_path in tqdm(json_paths, desc="Importing JSON to DB"):
             voice_works = load_json(json_path)
@@ -126,22 +126,22 @@ def import_voice_works_to_db(input_dir: str):
             for work in voice_works:
                 # メーカーデータを挿入 
                 maker_data = {
-                    MAKER_ID: work['maker_id'],
-                    MAKER_NAME: work['maker']
+                    CIRCLE_PRIMARY_KEY: work['maker_id'],
+                    CIRCLE_NAME: work['maker']
                 }
                 makers_manager.insert(maker_data)
                 
                 # カテゴリーデータを挿入
-                category_data = {CATEGORY_NAME: work['category']}
+                category_data = {PRODUCT_FORMAT_NAME: work['category']}
                 categories_manager.insert(category_data)
-                category_id = categories_manager.get_category_id(category_data[CATEGORY_NAME])
+                category_id = categories_manager.get_category_id(category_data[PRODUCT_FORMAT_NAME])
                 
                 # 作者データを挿入
-                author_data = {AUTHOR_NAME: work['author']}
-                author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
-                if author_id is None and author_data[AUTHOR_NAME]:
+                author_data = {VOICE_ACTOR_NAME: work['author']}
+                author_id = authors_manager.get_author_id(author_data[VOICE_ACTOR_NAME])
+                if author_id is None and author_data[VOICE_ACTOR_NAME]:
                     authors_manager.insert(author_data)
-                    author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
+                    author_id = authors_manager.get_author_id(author_data[VOICE_ACTOR_NAME])
                 
                 # 年齢レーティングデータを挿入
                 age_rating_data = {AGE_RATING_NAME: work['age_rating']}
@@ -152,17 +152,17 @@ def import_voice_works_to_db(input_dir: str):
                 
                 # ボイス作品データを挿入
                 voice_work_entry = {
-                    VOICE_WORKS_PRODUCT_ID: work['product_id'],
+                    VOICE_WORKS_PRIMARY_KEY: work['product_id'],
                     VOICE_WORKS_TITLE: work['title'],
                     VOICE_WORKS_URL: work['url'],
-                    VOICE_WORKS_CATEGORY_ID: category_id,
-                    VOICE_WORKS_MAKER_ID: maker_data[MAKER_ID],
-                    VOICE_WORKS_AUTHOR_ID: author_id,
+                    PRODUCT_FORMAT_FOREIGN_KEY: category_id,
+                    CIRCLES_FOREIGN_KEY: maker_data[CIRCLE_PRIMARY_KEY],
+                    VOICE_ACTORS_FOREIGN_KEY: author_id,
                     VOICE_WORKS_PRICE: work['price'],
                     VOICE_WORKS_POINTS: work['points'],
                     VOICE_WORKS_SALES_COUNT: work['sales_count'],
                     VOICE_WORKS_REVIEW_COUNT: work['review_count'],
-                    VOICE_WORKS_AGE_RATING_ID: age_rating_id,
+                    AGE_FOREIGN_KEY: age_rating_id,
                     VOICE_WORKS_FULL_IMAGE_URL: work['full_image_url']
                 }
                 voice_works_manager.insert(voice_work_entry)

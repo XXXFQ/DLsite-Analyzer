@@ -3,26 +3,26 @@ from ..common import (
     TableManagerInterface
 )
 from ..constants import (
-    MAKERS_TABLE,
-    MAKER_ID,
-    MAKER_NAME,
+    CIRCLES_TABLE,
+    CIRCLE_PRIMARY_KEY,
+    CIRCLE_NAME,
 )
 
 class MakersTableManager(TableManagerInterface):
     def __init__(self, db_manager: DatabaseManager):
         # テーブル情報
         table_info  = {
-            'name': MAKERS_TABLE,
+            'name': CIRCLES_TABLE,
             'columns': [
-                MAKER_ID,
-                MAKER_NAME
+                CIRCLE_PRIMARY_KEY,
+                CIRCLE_NAME
             ]
         }
         
         # テーブルのカラム名とデータ型
         columns_with_types = {
-            MAKER_ID: 'TEXT PRIMARY KEY',
-            MAKER_NAME: 'TEXT NOT NULL'
+            CIRCLE_PRIMARY_KEY: 'TEXT PRIMARY KEY',
+            CIRCLE_NAME: 'TEXT NOT NULL'
         }
         
         # 親クラスのコンストラクタを呼び出す

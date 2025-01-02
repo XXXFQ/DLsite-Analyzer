@@ -3,26 +3,26 @@ from ..common import (
     TableManagerInterface
 )
 from ..constants import (
-    CATEGORY_TABLE,
-    CATEGORY_ID,
-    CATEGORY_NAME,
+    PRODUCT_FORMAT_TABLE,
+    PRODUCT_FORMAT_PRIMARY_KEY,
+    PRODUCT_FORMAT_NAME,
 )
 
 class CategoriesTableManager(TableManagerInterface):
     def __init__(self, db_manager: DatabaseManager):
         # テーブル情報
         table_info  = {
-            'name': CATEGORY_TABLE,
+            'name': PRODUCT_FORMAT_TABLE,
             'columns': [
-                CATEGORY_ID,
-                CATEGORY_NAME
+                PRODUCT_FORMAT_PRIMARY_KEY,
+                PRODUCT_FORMAT_NAME
             ]
         }
         
         # テーブルのカラム名とデータ型
         columns_with_types = {
-            CATEGORY_ID: 'INTEGER PRIMARY KEY AUTOINCREMENT',
-            CATEGORY_NAME: 'TEXT UNIQUE NOT NULL'
+            PRODUCT_FORMAT_PRIMARY_KEY: 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            PRODUCT_FORMAT_NAME: 'TEXT UNIQUE NOT NULL'
         }
         
         # 親クラスのコンストラクタを呼び出す
@@ -56,7 +56,7 @@ class CategoriesTableManager(TableManagerInterface):
         int
             カテゴリーID
         '''
-        query = f"SELECT {CATEGORY_ID} FROM {self.table_info['name']} WHERE {CATEGORY_NAME} = ?"
+        query = f"SELECT {PRODUCT_FORMAT_PRIMARY_KEY} FROM {self.table_info['name']} WHERE {PRODUCT_FORMAT_NAME} = ?"
         res = self.db_manager.execute_query(query, (category_name,))
         record = res.fetchone()
         return record[0] if record else None

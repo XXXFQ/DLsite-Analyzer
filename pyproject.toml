@@ -18,6 +18,9 @@ tqdm = "^4.67.0"
 unidic-lite = "^1.0.8"
 wordcloud = "^1.9.4"
 
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

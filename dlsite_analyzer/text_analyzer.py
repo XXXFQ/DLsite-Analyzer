@@ -55,7 +55,7 @@ def generate_wordcloud(word_frequency_data: list | dict, font_path: str='ipaexg.
     else:
         wfdict = dict(word_frequency_data)
     
-    wc = WordCloud(background_color='white', font_path=font_path, width=900, height=500)
+    wc = WordCloud(background_color='white', font_path=font_path, width=900, height=500, colormap='cool')
     wc.generate_from_frequencies(wfdict)
     return wc
 
