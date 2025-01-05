@@ -1,13 +1,13 @@
-from .voice_works import VoiceWorksTableManager
-from .makers import MakersTableManager
-from .categories import CategoriesTableManager
-from .authors import AuthorsTableManager
-from .age_rating import AgeRatingTableManager
+from .age_rating import AgeRatingTableHandler
+from .circles import CirclesTableHandler
+from .product_format import ProductFormatTableHandler
+from .voice_authors import VoiceActorsTableHandler
+from .voice_works import VoiceWorksTableHandler
 
 __all__ = [
-    'VoiceWorksTableManager',
-    'MakersTableManager',
-    'CategoriesTableManager',
-    'AuthorsTableManager',
-    'AgeRatingTableManager'
+    'AgeRatingTableHandler',
+    'CirclesTableHandler',
+    'ProductFormatTableHandler',
+    'VoiceActorsTableHandler',
+    'VoiceWorksTableHandler'
 ]

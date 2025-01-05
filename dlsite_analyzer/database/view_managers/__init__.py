@@ -1,5 +1,5 @@
-from .voice_works import VoiceWorksViewManager
+from .voice_works import VoiceWorksViewHandler
 
 __all__ = [
-    'VoiceWorksViewManager'
+    'VoiceWorksViewHandler'
 ]

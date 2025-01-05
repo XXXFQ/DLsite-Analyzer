@@ -7,7 +7,7 @@ from datetime import datetime
 
 from ..utils import Logger
 
-logger = Logger.getLogger(__name__)
+logger = Logger.get_logger(__name__)
 
 def load_json(file_path: str, encoding='UTF-8') -> dict:
     '''

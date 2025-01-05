@@ -7,7 +7,7 @@ from ..utils import (
     sleep_random
 )
 
-logger = Logger.getLogger(__name__)
+logger = Logger.get_logger(__name__)
 
 class VoiceWorkScraper:
     def __init__(self):
