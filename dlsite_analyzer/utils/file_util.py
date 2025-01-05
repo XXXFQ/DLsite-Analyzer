@@ -1,135 +1,131 @@
-import os
 import json
+import random
 import shutil
-import zipfile
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from time import sleep
 
-from ..utils import Logger
+from .logger import Logger
 
 logger = Logger.get_logger(__name__)
 
-def load_json(file_path: str, encoding='UTF-8') -> dict:
+def sleep_random(min_seconds: int, max_seconds: int) -> None:
     '''
-    指定されたファイルパスのJSONファイルを読み込む
-    
+    Pause execution for a random duration between min_seconds and max_seconds.
+
+    Parameters
+    ----------
+    min_seconds : int
+        Minimum duration in seconds.
+    max_seconds : int
+        Maximum duration in seconds.
+    '''
+    delay = random.uniform(min_seconds, max_seconds)
+    sleep(delay)
+
+def load_json(file_path: str, encoding: str='UTF-8') -> dict:
+    '''
+    Load JSON data from the specified file path.
+
     Parameters
     ----------
     file_path : str
-        読み込むファイルのパス
+        Path to the JSON file.
     encoding : str
-        エンコーディング
-    
+        File encoding, default is 'UTF-8'.
+
     Returns
     -------
     dict
-        読み込んだデータ
+        The loaded JSON data.
     '''
     try:
         with open(file_path, 'r', encoding=encoding) as file:
             return json.load(file)
     except FileNotFoundError:
-            return {}
+        logger.warning(f"File not found: {file_path}")
+        return {}
 
-def save_json(data: dict, file_path: str, indent=4, encoding='UTF-8',ensure_ascii=True):
+def save_json(data: dict, file_path: str, indent: int=4, encoding: str='UTF-8', ensure_ascii: bool=True) -> None:
     '''
-    指定されたファイルパスにJSONファイルを書き込む
-    
+    Save data as a JSON file at the specified file path.
+
     Parameters
     ----------
     data : dict
-        書き込むデータ
+        Data to be saved.
     file_path : str
-        書き込むファイルのパス
+        Path to save the JSON file.
     indent : int
-        インデント
+        Indentation for the JSON file, default is 4.
     encoding : str
-        エンコーディング
+        File encoding, default is 'UTF-8'.
     ensure_ascii : bool
-        ASCII文字のみでエンコードするかどうか
+        If True, ensures ASCII characters only, default is True.
     '''
     with open(file_path, 'w', encoding=encoding) as file:
         json.dump(data, file, indent=indent, ensure_ascii=ensure_ascii)
 
 def create_output_directory(output_dir_path: str) -> Path:
     '''
-    出力ディレクトリを作成する
-    
+    Create an output directory if it does not exist.
+
     Parameters
     ----------
     output_dir_path : str
-        出力ディレクトリのパス
-    
+        Path to the output directory.
+
     Returns
     -------
     Path
-        出力ディレクトリのPathオブジェクト
+        Path object of the created directory.
     '''
     output_dir = Path(output_dir_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def cleanup(directory_path: str):
+def cleanup(directory_path: str) -> None:
     '''
-    ディレクトリを削除して新しく作成する
-    
+    Delete the specified directory and recreate it.
+
     Parameters
     ----------
     directory_path : str
-        ディレクトリのパス
+        Path to the directory to be cleaned up.
     '''
     directory = Path(directory_path)
-    shutil.rmtree(directory)
+    if directory.exists():
+        shutil.rmtree(directory)
     directory.mkdir(exist_ok=True)
-    logger.info(f"Deleted {directory_path} and created a new one.")
+    logger.info(f"Cleaned up and recreated directory: {directory_path}")
 
-def archive_and_zip_files(files: list, outdir: str):
+def archive_and_zip_files(files: list, output_dir: str) -> bool:
     '''
-    ファイルをアーカイブしてZIP形式で保存する
-    
+    Archive files into a ZIP file.
+
     Parameters
     ----------
     files : list
-        アーカイブするファイルのリスト
-    outdir : str
-        ZIPファイルを保存するディレクトリのパス
+        List of file paths to be archived.
+    output_dir : str
+        Path to the directory to save the ZIP file.
+
+    Returns
+    -------
+    bool
+        True if archiving is successful, False otherwise.
     '''
     if not files:
-        print("アーカイブするファイルがありません。")
+        logger.warning("No files provided for archiving.")
         return False
-    
-    # アーカイブ先ディレクトリのパスを作成
-    archive_transfer_path = Path(outdir) / str(datetime.now().strftime("%Y-%m-%d-%H%M%S"))
-    
-    # アーカイブ先ディレクトリを作成
-    os.makedirs(archive_transfer_path, exist_ok=True)
-    
-    # ファイルをアーカイブ先ディレクトリに移動
-    for file in files:
-        shutil.move(file, archive_transfer_path)
-    
-    # ZIP形式でアーカイブ
-    shutil.make_archive(archive_transfer_path, 'zip', root_dir=archive_transfer_path)
-    
-    # アーカイブしたファイルを削除
-    shutil.rmtree(archive_transfer_path)
-    
-    logger.info(f"The archive is complete, and the ZIP file has been saved to {outdir}.")
-    return True
 
-def unzip_file(zip_file_path: str, outdir: str):
-    '''
-    zipの解凍
-    
-    Parameters
-    ----------
-    zip_file_path : str
-        ZIPファイルのパス
-    outdir : str
-        解凍先のディレクトリのパス
-    '''
-    try:
-        with zipfile.ZipFile(file=zip_file_path) as zip_ref:
-            zip_ref.extractall(path=outdir)
-    except FileNotFoundError as e:
-        logger.error(e)
+    archive_path = Path(output_dir) / datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    archive_path.mkdir(parents=True, exist_ok=True)
+
+    for file in files:
+        shutil.move(file, archive_path)
+
+    zip_path = shutil.make_archive(str(archive_path), 'zip', root_dir=archive_path)
+    shutil.rmtree(archive_path)
+    logger.info(f"Files archived and saved as ZIP: {zip_path}")
+    return True

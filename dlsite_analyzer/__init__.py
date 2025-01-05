@@ -1,10 +1,11 @@
+import os
 import glob
 from tqdm import tqdm
 from pathlib import Path
 from typing import Optional
 
 from .scraper import VoiceWorkScraper
-from .config import DATABASE_PATH
+from .config import DATABASE_PATH, RAW_JSON_DATA_DIR, ARCHIVE_DIR
 from .database_initializer import DatabaseInitializer
 from .database import (
     SQLiteHandler,
@@ -33,9 +34,24 @@ from .database.constants import (
     VOICE_ACTOR_NAME,
     AGE_RATING_NAME,
 )
-from .utils import Logger, load_json, save_json
+from .utils import (
+    Logger,
+    load_json,
+    save_json,
+    archive_and_zip_files,
+    cleanup
+)
 
 logger = Logger.get_logger(__name__)
+
+def archive_and_cleanup():
+    '''
+    Archives the previously collected tweet JSON files and cleans up the directory.
+    '''
+    if RAW_JSON_DATA_DIR.exists():
+        tweet_file_paths = sorted(glob.iglob(os.path.join(RAW_JSON_DATA_DIR, "*.json")))
+        archive_and_zip_files(tweet_file_paths, output_dir=ARCHIVE_DIR)
+        cleanup(RAW_JSON_DATA_DIR)
 
 def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
     '''
@@ -158,6 +174,7 @@ def import_voice_works_to_db(input_dir: Path) -> None:
     logger.info("All JSON data imported to the database.")
 
 __all__ = [
+    'archive_and_cleanup',
     'DatabaseInitializer',
     'fetch_and_save_voice_works',
     'import_voice_works_to_db',
