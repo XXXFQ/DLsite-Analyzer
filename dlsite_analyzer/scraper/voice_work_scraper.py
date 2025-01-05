@@ -27,7 +27,6 @@ class VoiceWorkScraper:
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.5938.132 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
             "Connection": "keep-alive"
         }
         self.params = {
@@ -145,13 +144,6 @@ class VoiceWorkScraper:
         results = []
 
         for work in voice_works_list:
-            url = self._extract_title_and_link(work)["url"]
-            response = self.get_voice_works_response_by_url(url)
-            
-            if response.status_code != 200:
-                logger.error(f"Failed to fetch the work page: {url}")
-                continue
-            
             work_data = {
                 "product_id": self._extract_product_id(work), # 作品ID
                 "title": self._extract_title_and_link(work)["title"], # タイトル

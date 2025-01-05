@@ -1,8 +1,10 @@
 import os
 import glob
-from tqdm import tqdm
+from time import sleep
 from pathlib import Path
 from typing import Optional
+
+from tqdm import tqdm
 
 from .scraper import VoiceWorkScraper
 from .config import DATABASE_PATH, RAW_JSON_DATA_DIR, ARCHIVE_DIR
@@ -53,7 +55,7 @@ def archive_and_cleanup():
         archive_and_zip_files(tweet_file_paths, output_dir=ARCHIVE_DIR)
         cleanup(RAW_JSON_DATA_DIR)
 
-def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
+def fetch_and_save_voice_works(save_dir: Path, max_retries: int=3, retry_delay: float=2.0) -> Optional[None]:
     '''
     Fetch voice works data from a website and save each page as a JSON file.
 
@@ -61,6 +63,10 @@ def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
     ----------
     save_dir : Path
         Directory where JSON files will be saved.
+    max_retries : int
+        Maximum number of retries for failed requests.
+    retry_delay : float
+        Time in seconds to wait before retrying a failed request.
 
     Returns
     -------
@@ -68,10 +74,16 @@ def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
         Returns None if the process completes successfully.
     '''
     scraper = VoiceWorkScraper()
-    first_page_response = scraper.get_voice_works_response()
-
-    if first_page_response.status_code != 200:
-        logger.error("Failed to fetch the first page.")
+    
+    # Fetch the first page and determine the total number of pages
+    for attempt in range(max_retries):
+        first_page_response = scraper.get_voice_works_response()
+        if first_page_response.status_code == 200:
+            break
+        logger.error(f"Failed to fetch the first page. Retrying ({attempt + 1}/{max_retries})...")
+        sleep(retry_delay)
+    else:
+        logger.error("Exceeded maximum retries for the first page.")
         return None
 
     total_pages = scraper.get_total_pages(first_page_response.text)
@@ -79,16 +91,22 @@ def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
 
     save_dir.mkdir(parents=True, exist_ok=True)
 
+    # Process each page
     for page in tqdm(range(1, total_pages + 1), desc="Fetching pages"):
-        response = scraper.get_voice_works_response(page)
-        if response.status_code == 200:
-            voice_works = scraper.extract_voice_work_data(response.text)
-            save_file_path = save_dir / f"voice_works_page_{page}.json"
-            save_json(voice_works, save_file_path)
-            logger.info(f"Page {page} data saved successfully.")
+        for attempt in range(max_retries):
+            response = scraper.get_voice_works_response(page)
+            if response.status_code == 200:
+                break
+            logger.error(f"Failed to fetch page {page}. Retrying ({attempt + 1}/{max_retries})...")
+            sleep(retry_delay)
         else:
-            logger.error(f"Failed to fetch page {page}: Status code {response.status_code}")
-            break
+            logger.error(f"Exceeded maximum retries for page {page}. Skipping this page.")
+            continue
+
+        voice_works = scraper.extract_voice_work_data(response.text)
+        save_file_path = save_dir / f"voice_works_page_{page}.json"
+        save_json(voice_works, save_file_path)
+        # logger.info(f"Page {page} data saved successfully.")
 
     logger.info("All pages processed and saved as JSON files.")
 
