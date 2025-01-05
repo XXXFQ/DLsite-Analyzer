@@ -1,42 +1,41 @@
-# ボイス作品テーブル
+# Constants for the Voice Works Table
 VOICE_WORKS_TABLE = 'voice_works'
-VOICE_WORKS_PRODUCT_ID = 'product_id'
+VOICE_WORKS_PRIMARY_KEY = 'id'
 VOICE_WORKS_TITLE = 'title'
 VOICE_WORKS_URL = 'url'
-VOICE_WORKS_CATEGORY_ID = 'category_id'
-VOICE_WORKS_MAKER_ID = 'maker_id'
-VOICE_WORKS_AUTHOR_ID = 'author_id'
+VOICE_WORKS_PRODUCT_FORMAT_ID = 'product_format_id'
+VOICE_WORKS_CIRCLE_ID = 'circle_id'
+VOICE_WORKS_VOICE_ACTOR_ID = 'voice_actor_id'
 VOICE_WORKS_PRICE = 'price'
 VOICE_WORKS_POINTS = 'points'
 VOICE_WORKS_SALES_COUNT = 'sales_count'
 VOICE_WORKS_REVIEW_COUNT = 'review_count'
-VOICE_WORKS_AGE_RATING_ID = 'age_rating_id'
-# VOICE_WORKS_TARGET_GENGER = 'target_gender'
+VOICE_WORKS_AGE_ID = 'age_id'
 VOICE_WORKS_FULL_IMAGE_URL = 'full_image_url'
 
-# メーカーテーブル
-MAKERS_TABLE = 'makers'
-MAKER_ID = 'maker_id'
-MAKER_NAME = 'name'
+# Constants for the Circles Table
+CIRCLES_TABLE = 'circles'
+CIRCLE_PRIMARY_KEY = 'id'
+CIRCLE_NAME = 'name'
 
-# カテゴリーテーブル
-CATEGORY_TABLE = 'categories'
-CATEGORY_ID = 'category_id'
-CATEGORY_NAME = 'name'
+# Constants for the Product Format Table
+PRODUCT_FORMAT_TABLE = 'product_format'
+PRODUCT_FORMAT_PRIMARY_KEY = 'id'
+PRODUCT_FORMAT_NAME = 'name'
 
-# 作者テーブル
-AUTHORS_TABLE = 'authors'
-AUTHOR_ID = 'author_id'
-AUTHOR_NAME = 'name'
+# Constants for the Voice Actors Table
+VOICE_ACTORS_TABLE = 'voice_actor'
+VOICE_ACTOR_PRIMARY_KEY = 'id'
+VOICE_ACTOR_NAME = 'name'
 
-# 年齢レーティングテーブル
-AGE_RATING_TABLE = 'age_rating'
-AGE_RATING_ID = 'age_rating_id'
+# Constants for the Age Ratings Table
+AGE_RATING_TABLE = 'age_ratings'
+AGE_RATING_PRIMARY_KEY = 'id'
 AGE_RATING_NAME = 'name'
 
-# ボイス作品ビュー
+# Constants for the Voice Works View
 VOICE_WORKS_VIEW = 'voice_works_view'
-VOICE_WORKS_VIEW_CATEGORY = 'category'
-VOICE_WORKS_VIEW_MAKER = 'maker'
-VOICE_WORKS_VIEW_AUTHOR = 'author'
-VOICE_WORKS_VIEW_AGE_RATING = 'age_rating'
+VOICE_WORKS_PRODUCT_FORMAT_VIEW = 'product_format'
+VOICE_WORKS_VIEW_CIRCLE = 'circle'
+VOICE_WORKS_VIEW_VOICE_ACTOR = 'voice_actor'
+VOICE_WORKS_VIEW_AGE = 'age'

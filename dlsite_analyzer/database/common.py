@@ -1,196 +1,245 @@
 import sqlite3
+from typing import Dict, Optional
 
-class DatabaseManager:
+class SQLiteHandler:
+    '''
+    Handles SQLite database operations with context management.
+    '''
     def __init__(self, db_path: str):
         '''
-        データベースを開く
-        
+        Initialize the database connection.
+
         Parameters
         ----------
         db_path : str
-            データベースファイルのパス
-        
-        Attributes
-        ----------
-        connection : sqlite3.Connection
-            データベース接続
-        cursor : sqlite3.Cursor
-            カーソル
+            Path to the SQLite database file.
         '''
-        self._connection = sqlite3.connect(db_path)
-        self._cursor = self._connection.cursor()
+        self._connection = sqlite3.connect(db_path) # データベース接続
+        self._cursor = self._connection.cursor() # カーソル
 
-    def __enter__(self) -> 'DatabaseManager':
+    def __enter__(self) -> 'SQLiteHandler':
         '''
-        トランザクションを開始する
+        Begin a transaction on entering the context.
         '''
         self.execute_query('BEGIN')
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):
         '''
-        トランザクションを終了する
+        Commit or rollback transaction and close the connection on exiting the context.
         '''
         if exc_type is None:
             self.commit()
         else:
             self._connection.rollback()
         self._connection.close()
-    
-    def __del__(self):
-        '''
-        データベースを閉じる
-        '''
-        self._connection.close()
 
-    def execute_query(self, query, params=None) -> sqlite3.Cursor:
+    def execute_query(self, query: str, params: tuple=None) -> sqlite3.Cursor:
         '''
-        クエリを実行する
-        
+        Execute a single query.
+
         Parameters
         ----------
         query : str
-            クエリ
-        params : tuple
-            クエリのパラメータ
-        
+            The SQL query to execute.
+        params : tuple, optional
+            Parameters for the query.
+
         Returns
         -------
         sqlite3.Cursor
-            カーソル
+            Cursor object containing query results.
         '''
-        if params:
-            res = self._cursor.execute(query, params)
-        else:
-            res = self._cursor.execute(query)
-        return res
+        return self._cursor.execute(query, params or ())
+    
+    def executemany_query(self, query: str, params: list) -> sqlite3.Cursor:
+        '''
+        Execute a query with multiple parameter sets.
 
-    def commit(self):
+        Parameters
+        ----------
+        query : str
+            The SQL query to execute.
+        params : list
+            List of parameter tuples.
+
+        Returns
+        -------
+        sqlite3.Cursor
+            Cursor object containing query results.
         '''
-        変更を保存する
+        return self._cursor.executemany(query, params)
+    
+    def commit(self) -> None:
+        '''
+        Commit the current transaction.
         '''
         self._connection.commit()
-
-class TableManagerInterface:
-    def __init__(self, db_manager: DatabaseManager, table_info: dict, columns_with_types: dict, foreign_keys: list=None):
+    
+    def close(self) -> None:
         '''
-        データベースを開く
+        Close the database connection.
+        '''
+        self._connection.close()
+
+class TableHandlerInterface:
+    '''
+    Generic handler for managing database tables.
+    '''
+    def __init__(self, db_connection: SQLiteHandler, table_name: str, columns_with_types: dict, primary_key: str, foreign_keys: list=None):
+        '''
+        Initialize a handler for a specific database table.
+
+        Parameters
+        ----------
+        db_connection : SQLiteHandler
+            Database connection handler.
+        table_name : str
+            Name of the table to manage.
+        columns_with_types : dict
+            Dictionary mapping column names to their types.
+        primary_key : str
+            Name of the primary key column.
+        foreign_keys : list, optional
+            List of foreign key constraints (default is None).
+        '''
+        self.db_connection = db_connection
+        self.table_name = table_name
+        self.columns_with_types = columns_with_types
+        self.primary_key = primary_key
+        self.foreign_keys = foreign_keys or []
+    
+    def create_table(self) -> None:
+        '''
+        Create the table with specified schema.
+        '''
+        columns = ', '.join([f"{col} {dtype}" for col, dtype in self.columns_with_types.items()])
+        foreign_keys = ', '.join(self.foreign_keys)
+        constraints = f", {foreign_keys}" if foreign_keys else ""
+
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.table_name} (
+            {columns}{constraints}
+        )
+        '''
+        self.db_connection.execute_query(query)
+        self.db_connection.commit()
+    
+    def create_index(self) -> None:
+        '''
+        Create an index on the primary key.
+        '''
+        query = f"""
+        CREATE INDEX IF NOT EXISTS idx_{self.table_name}_{self.primary_key}
+        ON {self.table_name} ({self.primary_key})
+        """
+        self.db_connection.execute_query(query)
+        self.db_connection.commit()
+    
+    def insert(self, record: dict) -> None:
+        '''
+        Insert data into the table.
         
         Parameters
         ----------
-        db_manager : DatabaseManager
-            データベースマネージャ
-        table_info : dict
-            テーブル情報
-        columns_with_types : dict
-            カラム名とデータ型
-        foreign_keys : list
-            外部キー制約
-        
-        Attributes
+        record : dict
+            Dictionary of column data.
+        '''
+        columns = ', '.join(record.keys())
+        placeholders = ', '.join(['?' for _ in record.values()])
+        query = f"INSERT OR IGNORE INTO {self.table_name} ({columns}) VALUES ({placeholders})"
+        self.db_connection.execute_query(query, tuple(record.values()))
+    
+    def fetch_all(self) -> dict:
+        '''
+        Fetch all rows from the table.
+
+        Returns
+        -------
+        dict
+            Dictionary of rows with the primary key as the key and other data as the value.
+        '''
+        query = f"SELECT * FROM {self.table_name}"
+        results = self.db_connection.execute_query(query).fetchall()
+        return {row[0]: row[1:] for row in results}
+    
+    def fetch_results_as_dict(self, query: str, params: Optional[tuple]=None) -> Dict[int, Dict]:
+        '''
+        Execute a query and fetch results as a dictionary.
+
+        Parameters
         ----------
-        connection : sqlite3.Connection
-            データベース接続
-        cursor : sqlite3.Cursor
-            カーソル
+        query : str
+            SQL query to execute.
+        params : tuple, optional
+            Parameters for the query.
+
+        Returns
+        -------
+        dict
+            Dictionary of results keyed by the primary key.
         '''
-        self.db_manager = db_manager # データベースマネージャ
-        self.table_info = table_info # テーブル情報
-        self.columns_with_types = columns_with_types # カラム名とデータ型
-        self.foreign_keys = foreign_keys # 外部キー制約
+        result = self.db_connection.execute_query(query, params).fetchall()
+        columns = self._get_columns()
+        return {
+            row[0]: {column: row[i] for i, column in enumerate(columns)}
+            for row in result
+        }
     
-    def create_table(self):
+    def _get_columns(self) -> list:
         '''
-        テーブルを作成する
-        '''
-        # カラム名とデータ型を取得する
-        columns = ', '.join([f"{col} {data_type}" for col, data_type in self.columns_with_types.items()])
-        
-        if self.foreign_keys:
-            # 外部キー制約がある場合
-            foreign_keys = ', '.join(self.foreign_keys)
-            query = f"CREATE TABLE IF NOT EXISTS {self.table_info['name']} ({columns}, {foreign_keys})"
-        else:
-            query = f"CREATE TABLE IF NOT EXISTS {self.table_info['name']} ({columns})"
-        
-        # テーブルを作成する
-        self.db_manager.execute_query(query)
-        self.db_manager.commit()
-    
-    def get_columns(self) -> list:
-        '''
-        カラム名のリストを取得する
-        
+        Retrieve column names from the view.
+
         Returns
         -------
         list
-            カラム名のリスト
+            List of column names.
         '''
-        query = f"PRAGMA table_info({self.table_info['name']})"
-        res = self.db_manager.execute_query(query)
-        return [column[1] for column in res.fetchall()]
+        query = f"PRAGMA table_info({self.table_name})"
+        result = self.db_connection.execute_query(query)
+        return [row[1] for row in result.fetchall()]
 
-class ViewManagerInterface:
-    def __init__(self, db_manager: DatabaseManager, view_info: dict, tables: list, joins: list, order_by: str):
+class ViewHandlerInterface:
+    '''
+    Generic handler for managing database views.
+    '''
+    def __init__(self, db_connection: SQLiteHandler, view_name: str, select_query: str):
         '''
-        データベースを開く
-        
+        Initialize a handler for a specific database view.
+
         Parameters
         ----------
-        db_manager : DatabaseManager
-            データベースマネージャ
-        view_info : dict
-            ビューの情報
-        tables : list
-            テーブルの情報
-        joins : list
-            ビューの結合条件
-        order_by : str
-            ビューの並び順
-        
-        Attributes
-        ----------
-        connection : sqlite3.Connection
-            データベース接続
-        cursor : sqlite3.Cursor
-            カーソル
+        db_connection : SQLiteHandler
+            Database connection handler.
+        view_name : str
+            Name of the view to manage.
+        select_query : str
+            SQL query defining the view.
         '''
-        self.db_manager = db_manager # データベースマネージャ
-        self.view_info = view_info # ビューの情報
-        self.tables = tables # テーブルの情報
-        self.joins = joins # ビューの結合条件
-        self.order_by = order_by # ビューの並び順
-    
+        self.db_connection = db_connection
+        self.view_name = view_name
+        self.select_query = select_query
+        
     def create_view(self) -> None:
         '''
-        ビューを作成する
+        Create the view with specified SQL.
         '''
-        columns = ', '.join(self.view_info['columns'])
-        from_clause = ', '.join(self.tables)
-        join_clause = ' AND '.join(self.joins)
-        query = f'''
-        CREATE VIEW IF NOT EXISTS {self.view_info['name']} AS
-        SELECT
-            {columns}
-        FROM
-            {from_clause}
-        WHERE
-            {join_clause}
-        ORDER BY
-            {self.order_by}
-        '''
-        self.db_manager.execute_query(query)
-        self.db_manager.commit()
+        query = f"""
+        CREATE VIEW IF NOT EXISTS {self.view_name} AS
+        {self.select_query}
+        """
+        self.db_connection.execute_query(query)
+        self.db_connection.commit()
     
     def get_columns(self) -> list:
         '''
-        カラム名のリストを取得する
-        
+        Retrieve column names from the view.
+
         Returns
         -------
         list
-            カラム名のリスト
+            List of column names.
         '''
-        query = f"PRAGMA table_info({self.view_info['name']})"
-        res = self.db_manager.execute_query(query)
-        return [column[1] for column in res.fetchall()]
+        query = f"PRAGMA table_info({self.view_name})"
+        result = self.db_connection.execute_query(query)
+        return [row[1] for row in result.fetchall()]

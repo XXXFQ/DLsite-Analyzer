@@ -1,19 +1,19 @@
-from .common import DatabaseManager
-from .view_managers import VoiceWorksViewManager
+from .common import SQLiteHandler
+from .view_managers import VoiceWorksViewHandler
 from .table_managers import (
-    VoiceWorksTableManager,
-    MakersTableManager,
-    CategoriesTableManager,
-    AuthorsTableManager,
-    AgeRatingTableManager
+    VoiceWorksTableHandler,
+    CirclesTableHandler,
+    ProductFormatTableHandler,
+    VoiceActorsTableHandler,
+    AgeRatingTableHandler
 )
 
 __all__ = [
-    'DatabaseManager',
-    'VoiceWorksViewManager',
-    'VoiceWorksTableManager',
-    'MakersTableManager',
-    'CategoriesTableManager',
-    'AuthorsTableManager',
-    'AgeRatingTableManager'
+    'SQLiteHandler',
+    'VoiceWorksViewHandler',
+    'VoiceWorksTableHandler',
+    'CirclesTableHandler',
+    'ProductFormatTableHandler',
+    'VoiceActorsTableHandler',
+    'AgeRatingTableHandler'
 ]

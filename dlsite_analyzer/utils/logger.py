@@ -1,4 +1,3 @@
-import os
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -6,52 +5,80 @@ from pathlib import Path
 import colorlog
 
 class Logger:
-    def getLogger(name=__name__):
+    '''
+    A utility class to configure and manage logging with support for both file and console outputs.
+    '''
+    LOG_DIR = Path("./logs")
+    FILE_LOG_FORMAT = '%(asctime)s %(levelname)-8s %(name)s %(message)s'
+    CONSOLE_LOG_FORMAT = r'%(light_black)s%(asctime)s %(levelname_log_color)s%(levelname)-8s %(purple)s%(name)s %(white)s%(message)s'
+    DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+    
+    @staticmethod
+    def get_logger(name: str = __name__) -> logging.Logger:
         '''
-        ロガーの設定
-        
+        Configure and return a logger instance.
+
         Parameters
         ----------
-        name : str
-            ロガー名
+        name : str, optional
+            Name of the logger, by default __name__
+
+        Returns
+        -------
+        logging.Logger
+            Configured logger instance
         '''
-        # ログファイルの保存先を設定
-        logfile_dir = Path("./logs")
-        logfile_path = logfile_dir / f"{datetime.now().strftime('%Y-%m-%d')}.log"
-        if not os.path.exists(logfile_dir):
-            os.mkdir(logfile_dir)
-        
+        # Ensure the log directory exists
+        Logger.LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Configure the logger
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
+
+        # Add file and console handlers
+        logfile_path = Logger.LOG_DIR / f"{datetime.now().strftime('%Y-%m-%d')}.log"
         logger.addHandler(Logger._get_file_handler(logfile_path))
         logger.addHandler(Logger._get_console_handler())
-        logger.propagate = False
+        logger.propagate = False  # Prevent duplicate logs if used in parent-child logger hierarchy
+
         return logger
-    
-    def _get_file_handler(logfile: str):
+
+    @staticmethod
+    def _get_file_handler(logfile: Path) -> logging.FileHandler:
         '''
-        ファイル出力の設定
-        
+        Create and return a file handler for logging.
+
         Parameters
         ----------
-        logfile : str
-            ログファイルのパス
+        logfile : Path
+            Path to the log file
+
+        Returns
+        -------
+        logging.FileHandler
+            Configured file handler
         '''
         file_handler = logging.FileHandler(logfile, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-8s %(name)s %(message)s'))
+        file_handler.setFormatter(logging.Formatter(Logger.FILE_LOG_FORMAT))
         return file_handler
-    
-    def _get_console_handler():
+
+    @staticmethod
+    def _get_console_handler() -> colorlog.StreamHandler:
         '''
-        コンソール出力の設定
+        Create and return a console handler with colored output.
+
+        Returns
+        -------
+        colorlog.StreamHandler
+            Configured console handler
         '''
-        FORMAT = r'%(light_black)s%(asctime)s %(levelname_log_color)s%(levelname)-8s %(purple)s%(name)s %(white)s%(message)s'
         handler = colorlog.StreamHandler()
+        handler.setLevel(logging.DEBUG)
         handler.setFormatter(
             colorlog.ColoredFormatter(
-                fmt=FORMAT,
-                datefmt='%Y-%m-%d %H:%M:%S',
+                fmt=Logger.CONSOLE_LOG_FORMAT,
+                datefmt=Logger.DATE_FORMAT,
                 secondary_log_colors={
                     'levelname': {
                         'DEBUG': 'cyan',
@@ -63,5 +90,4 @@ class Logger:
                 }
             )
         )
-        handler.setLevel(logging.DEBUG)
         return handler

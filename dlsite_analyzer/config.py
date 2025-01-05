@@ -14,6 +14,9 @@ else:
 DATA_DIR = Path("./data")
 DATA_DIR.mkdir(exist_ok=True)
 
+# MeCabのユーザ辞書のパス
+MECAB_USER_DIC_PATH = DATA_DIR / 'user_dict.dic'
+
 # クロールデータの保存ディレクトリ
 RAW_JSON_DATA_DIR = DATA_DIR / 'raw_json'
 RAW_JSON_DATA_DIR.mkdir(exist_ok=True)

@@ -1,94 +1,86 @@
 import os
 import glob
-
 from tqdm import tqdm
+from pathlib import Path
+from typing import Optional
 
 from .scraper import VoiceWorkScraper
-from .config import DATABASE_PATH
-from .text_analyzer import (
-    extract_words,
-    generate_wordcloud,
-    plot_wordcloud
-)
+from .config import DATABASE_PATH, RAW_JSON_DATA_DIR, ARCHIVE_DIR
+from .database_initializer import DatabaseInitializer
 from .database import (
-    DatabaseManager,
-    VoiceWorksViewManager,
-    VoiceWorksTableManager,
-    MakersTableManager,
-    CategoriesTableManager,
-    AuthorsTableManager,
-    AgeRatingTableManager
+    SQLiteHandler,
+    VoiceWorksTableHandler,
+    CirclesTableHandler,
+    ProductFormatTableHandler,
+    VoiceActorsTableHandler,
+    AgeRatingTableHandler,
 )
 from .database.constants import (
-    VOICE_WORKS_PRODUCT_ID,
+    VOICE_WORKS_PRIMARY_KEY,
     VOICE_WORKS_TITLE,
     VOICE_WORKS_URL,
-    VOICE_WORKS_CATEGORY_ID,
-    VOICE_WORKS_MAKER_ID,
-    VOICE_WORKS_AUTHOR_ID,
+    VOICE_WORKS_PRODUCT_FORMAT_ID,
+    VOICE_WORKS_CIRCLE_ID,
+    VOICE_WORKS_VOICE_ACTOR_ID,
     VOICE_WORKS_PRICE,
     VOICE_WORKS_POINTS,
     VOICE_WORKS_SALES_COUNT,
     VOICE_WORKS_REVIEW_COUNT,
-    VOICE_WORKS_AGE_RATING_ID,
+    VOICE_WORKS_AGE_ID,
     VOICE_WORKS_FULL_IMAGE_URL,
-    MAKER_ID,
-    MAKER_NAME,
-    CATEGORY_NAME,
-    AUTHOR_NAME,
-    AGE_RATING_NAME
+    CIRCLE_PRIMARY_KEY,
+    CIRCLE_NAME,
+    PRODUCT_FORMAT_NAME,
+    VOICE_ACTOR_NAME,
+    AGE_RATING_NAME,
 )
 from .utils import (
     Logger,
     load_json,
     save_json,
-    sleep_random
+    archive_and_zip_files,
+    cleanup
 )
 
-logger = Logger.getLogger(__name__)
+logger = Logger.get_logger(__name__)
 
-def initialize_database():
+def archive_and_cleanup():
     '''
-    データベースを初期化し、必要なテーブルを作成する
+    Archives the previously collected tweet JSON files and cleans up the directory.
     '''
-    with DatabaseManager(DATABASE_PATH) as db_manager:
-        voice_works_manager = VoiceWorksTableManager(db_manager)
-        makers_manager = MakersTableManager(db_manager)
-        categories_manager = CategoriesTableManager(db_manager)
-        authors_manager = AuthorsTableManager(db_manager)
-        age_rating_manager = AgeRatingTableManager(db_manager)
-        voice_works_view = VoiceWorksViewManager(db_manager)
-        voice_works_manager.create_table()
-        makers_manager.create_table()
-        categories_manager.create_table()
-        authors_manager.create_table()
-        age_rating_manager.create_table()
-        voice_works_view.create_view()
-    
-    logger.info("Database initialized successfully.")
+    if RAW_JSON_DATA_DIR.exists():
+        tweet_file_paths = sorted(glob.iglob(os.path.join(RAW_JSON_DATA_DIR, "*.json")))
+        archive_and_zip_files(tweet_file_paths, output_dir=ARCHIVE_DIR)
+        cleanup(RAW_JSON_DATA_DIR)
 
-def fetch_and_save_voice_works(save_dir: str):
+def fetch_and_save_voice_works(save_dir: Path) -> Optional[None]:
     '''
-    ボイス作品を取得し、各ページのデータをJSONファイルに保存する
-    
+    Fetch voice works data from a website and save each page as a JSON file.
+
     Parameters
     ----------
-    save_dir : str
-        JSONファイルを保存するディレクトリのパス
+    save_dir : Path
+        Directory where JSON files will be saved.
+
+    Returns
+    -------
+    Optional[None]
+        Returns None if the process completes successfully.
     '''
     scraper = VoiceWorkScraper()
-    
-    first_page_response = scraper.get_voice_works_page()
+    first_page_response = scraper.get_voice_works_response()
+
     if first_page_response.status_code != 200:
         logger.error("Failed to fetch the first page.")
         return None
 
     total_pages = scraper.get_total_pages(first_page_response.text)
     logger.info(f"Total pages to process: {total_pages}")
-    
-    for page in tqdm(range(1, total_pages + 1), desc="Fetching pages"):
-        response = scraper.get_voice_works_page(page)
 
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    for page in tqdm(range(1, total_pages + 1), desc="Fetching pages"):
+        response = scraper.get_voice_works_response(page)
         if response.status_code == 200:
             voice_works = scraper.extract_voice_work_data(response.text)
             save_file_path = save_dir / f"voice_works_page_{page}.json"
@@ -97,86 +89,93 @@ def fetch_and_save_voice_works(save_dir: str):
         else:
             logger.error(f"Failed to fetch page {page}: Status code {response.status_code}")
             break
-        
-        sleep_random(2, 4)
-    
+
     logger.info("All pages processed and saved as JSON files.")
 
-def import_voice_works_to_db(input_dir: str):
+def _insert_voice_work_data(db_connection: SQLiteHandler, work: dict) -> None:
     '''
-    保存されたJSONファイルからボイス作品のデータを読み込み、データベースに保存する
-    
+    Insert a single voice work entry and its associated data into the database.
+
     Parameters
     ----------
-    input_dir : str
-        JSONファイルが保存されているディレクトリのパス
+    db_connection : SQLiteHandler
+        Database connection handler.
+    work : dict
+        Voice work data to be inserted.
     '''
-    json_paths = sorted(glob.iglob(os.path.join(input_dir, "*.json")))
-    
-    with DatabaseManager(DATABASE_PATH) as db_manager:
-        voice_works_manager = VoiceWorksTableManager(db_manager)
-        makers_manager = MakersTableManager(db_manager)
-        categories_manager = CategoriesTableManager(db_manager)
-        authors_manager = AuthorsTableManager(db_manager)
-        age_rating_manager = AgeRatingTableManager(db_manager)
-        
-        # 作者なしのデータを挿入
-        authors_manager.insert({AUTHOR_NAME: ''})
-        
-        for json_path in tqdm(json_paths, desc="Importing JSON to DB"):
-            voice_works = load_json(json_path)
-            
-            for work in voice_works:
-                # メーカーデータを挿入 
-                maker_data = {
-                    MAKER_ID: work['maker_id'],
-                    MAKER_NAME: work['maker']
-                }
-                makers_manager.insert(maker_data)
-                
-                # カテゴリーデータを挿入
-                category_data = {CATEGORY_NAME: work['category']}
-                categories_manager.insert(category_data)
-                category_id = categories_manager.get_category_id(category_data[CATEGORY_NAME])
-                
-                # 作者データを挿入
-                author_data = {AUTHOR_NAME: work['author']}
-                author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
-                if author_id is None and author_data[AUTHOR_NAME]:
-                    authors_manager.insert(author_data)
-                    author_id = authors_manager.get_author_id(author_data[AUTHOR_NAME])
-                
-                # 年齢レーティングデータを挿入
-                age_rating_data = {AGE_RATING_NAME: work['age_rating']}
-                age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
-                if age_rating_id is None:
-                    age_rating_manager.insert(age_rating_data)
-                    age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
-                
-                # ボイス作品データを挿入
-                voice_work_entry = {
-                    VOICE_WORKS_PRODUCT_ID: work['product_id'],
-                    VOICE_WORKS_TITLE: work['title'],
-                    VOICE_WORKS_URL: work['url'],
-                    VOICE_WORKS_CATEGORY_ID: category_id,
-                    VOICE_WORKS_MAKER_ID: maker_data[MAKER_ID],
-                    VOICE_WORKS_AUTHOR_ID: author_id,
-                    VOICE_WORKS_PRICE: work['price'],
-                    VOICE_WORKS_POINTS: work['points'],
-                    VOICE_WORKS_SALES_COUNT: work['sales_count'],
-                    VOICE_WORKS_REVIEW_COUNT: work['review_count'],
-                    VOICE_WORKS_AGE_RATING_ID: age_rating_id,
-                    VOICE_WORKS_FULL_IMAGE_URL: work['full_image_url']
-                }
-                voice_works_manager.insert(voice_work_entry)
-              
-        logger.info("All JSON data imported to the database.")
+    try:
+        age_rating_manager = AgeRatingTableHandler(db_connection)
+        circles_manager = CirclesTableHandler(db_connection)
+        product_format_manager = ProductFormatTableHandler(db_connection)
+        voice_actors_manager = VoiceActorsTableHandler(db_connection)
+        voice_works_manager = VoiceWorksTableHandler(db_connection)
+
+        # Insert or retrieve maker
+        circles_data = {CIRCLE_PRIMARY_KEY: work['maker_id'], CIRCLE_NAME: work['maker']}
+        circles_manager.insert(circles_data)
+
+        # Insert or retrieve product format
+        category_data = {PRODUCT_FORMAT_NAME: work['category']}
+        product_format_manager.insert(category_data)
+        category_id = product_format_manager.get_product_format_id(category_data[PRODUCT_FORMAT_NAME])
+
+        # Insert or retrieve author
+        author_data = {VOICE_ACTOR_NAME: work['author']}
+        author_id = voice_actors_manager.get_voice_actor_id(author_data[VOICE_ACTOR_NAME])
+        if author_id is None and author_data[VOICE_ACTOR_NAME]:
+            voice_actors_manager.insert(author_data)
+            author_id = voice_actors_manager.get_voice_actor_id(author_data[VOICE_ACTOR_NAME])
+
+        # Insert or retrieve age rating
+        age_rating_data = {AGE_RATING_NAME: work['age_rating']}
+        age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
+        if age_rating_id is None:
+            age_rating_manager.insert(age_rating_data)
+            age_rating_id = age_rating_manager.get_age_rating_id(age_rating_data[AGE_RATING_NAME])
+
+        # Insert voice work
+        voice_work_entry = {
+            VOICE_WORKS_PRIMARY_KEY: work['product_id'],
+            VOICE_WORKS_TITLE: work['title'],
+            VOICE_WORKS_URL: work['url'],
+            VOICE_WORKS_PRODUCT_FORMAT_ID: category_id,
+            VOICE_WORKS_CIRCLE_ID: circles_data[CIRCLE_PRIMARY_KEY],
+            VOICE_WORKS_VOICE_ACTOR_ID: author_id,
+            VOICE_WORKS_PRICE: work['price'],
+            VOICE_WORKS_POINTS: work['points'],
+            VOICE_WORKS_SALES_COUNT: work['sales_count'],
+            VOICE_WORKS_REVIEW_COUNT: work['review_count'],
+            VOICE_WORKS_AGE_ID: age_rating_id,
+            VOICE_WORKS_FULL_IMAGE_URL: work['full_image_url'],
+        }
+        voice_works_manager.insert(voice_work_entry)
+    except Exception as e:
+        logger.error(f"Failed to insert voice work data: {e}")
+
+def import_voice_works_to_db(input_dir: Path) -> None:
+    '''
+    Import voice works data from saved JSON files into the database.
+
+    Parameters
+    ----------
+    input_dir : Path
+        Directory where JSON files are stored.
+    '''
+    json_paths = sorted(glob.glob(str(input_dir / "*.json")))
+    try:
+        with SQLiteHandler(DATABASE_PATH) as db_connection:
+            for json_path in tqdm(json_paths, desc="Importing JSON to DB"):
+                voice_works = load_json(json_path)
+                for work in voice_works:
+                    _insert_voice_work_data(db_connection, work)
+    except Exception as e:
+        logger.error(f"Failed to process {json_path}: {e}")
+
+    logger.info("All JSON data imported to the database.")
 
 __all__ = [
-    'initialize_database',
+    'archive_and_cleanup',
+    'DatabaseInitializer',
     'fetch_and_save_voice_works',
     'import_voice_works_to_db',
-    'generate_wordcloud',
-    'plot_wordcloud',
-    'extract_words',
 ]
